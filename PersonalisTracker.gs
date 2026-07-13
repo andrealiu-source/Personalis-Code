@@ -207,13 +207,42 @@ function onEditTrigger(e) {
 
   const col = e.range.getColumn();
   const row = e.range.getRow();
+  const NUM_COLS = 14;
+
+  // ----------------------------------------------------------
+  // NEW: Column B (OHID) edited -> set A="Active", N="Automatic"
+  // Loops over the whole edited range so bulk PASTES of OHIDs
+  // (which fire onEdit once for the entire pasted block) all get
+  // handled, not just the top row.
+  // Runs and returns BEFORE the E-I gate below, so checkbox edits
+  // in columns E-I are completely unaffected.
+  // ----------------------------------------------------------
+  const numRows = e.range.getNumRows();
+  const numCols = e.range.getNumColumns();
+  if (col <= 2 && col + numCols - 1 >= 2) { // edited range includes column B
+    for (let r = row; r < row + numRows; r++) {
+      if (r < 2) continue; // skip header
+      const rd = sheet.getRange(r, 1, 1, NUM_COLS).getValues()[0];
+      const ohid = String(rd[1]).trim(); // Column B
+      if (!ohid) continue; // blank B -> leave row alone
+
+      // Column A: Active, unless already Cancelled
+      if (String(rd[0]).trim().toLowerCase() !== "cancelled") {
+        sheet.getRange(r, 1).setValue("Active");
+      }
+      // Column N: Automatic, only if blank (don't clobber "Manual")
+      if (String(rd[13]).trim() === "") {
+        sheet.getRange(r, 14).setValue("Automatic");
+      }
+    }
+    return; // done — never falls through to the E-I logic
+  }
 
   // Only react to edits in columns E(5) through I(9)
   if (col < 5 || col > 9) return;
   // Skip header row
   if (row < 2) return;
 
-  const NUM_COLS = 14;
   const rowData = sheet.getRange(row, 1, 1, NUM_COLS).getValues()[0];
 
   // Only update if OHID exists in column B
@@ -909,6 +938,48 @@ function removeDuplicatesFromMultipleBaselines() {
 
   console.log('=== DUPLICATE REMOVAL COMPLETE ===');
 }
+
+// ============================================================
+// BUTTON FUNCTION: Initialize manually-added OHIDs
+// One-time, fill-only sweep of xM NeXT Orders.
+// For every row with an OHID in column B, fills A="Active" and
+// N="Automatic" ONLY where those cells are currently blank.
+// Never overwrites an existing A or N value, so prior rows keep
+// their status / flag exactly as-is.
+// ============================================================
+function initializeManualOhids() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("xM NeXT Orders");
+  if (!sheet) {
+    SpreadsheetApp.getUi().alert("Could not find 'xM NeXT Orders'. Please check the sheet name.");
+    return;
+  }
+
+  const NUM_COLS = 14;
+  const lastRow = Math.max(sheet.getLastRow(), 1);
+  const data = sheet.getRange(1, 1, lastRow, NUM_COLS).getValues();
+
+  let updated = 0;
+  for (let i = 1; i < data.length; i++) { // skip header
+    const ohid = String(data[i][1]).trim(); // Column B
+    if (!ohid) continue;
+
+    let changed = false;
+    if (String(data[i][0]).trim() === "") { // Column A only if blank
+      data[i][0] = "Active";
+      changed = true;
+    }
+    if (String(data[i][13]).trim() === "") { // Column N only if blank
+      data[i][13] = "Automatic";
+      changed = true;
+    }
+    if (changed) updated++;
+  }
+
+  sheet.getRange(1, 1, data.length, NUM_COLS).setValues(data);
+  SpreadsheetApp.getUi().alert("Initialized " + updated + " row(s) with Active / Automatic.");
+}
+
 
 // ============================================================
 // SETUP: Run this function ONCE to install the onEdit trigger
