@@ -691,9 +691,6 @@ function transferDataToCRC() {
 // ============================================================
 // TRANSFER FUNCTION: Paste bulk data from Multiple Baseline
 // Paste sheet into Multiple Baselines Audit
-// Source -> Audit mapping: C->A, D->B, O->C, Q->D, S->E, F->F,
-//   I->H (dedup key), J->I, P->J, R->K, T->L, L->M (date/sort), M->N
-// Audit column G has no source (left blank).
 // ============================================================
 function transferDataToMultipleBaselines() {
   console.log('=== STARTING DATA TRANSFER ===');
@@ -728,7 +725,7 @@ function transferDataToMultipleBaselines() {
   console.log(`Audit data: ${auditData.length - 1} existing rows (excluding header)`);
 
   for (let i = 1; i < auditData.length; i++) {
-    const id = auditData[i][7]; // Audit column H (dedup key)
+    const id = auditData[i][6];
     if (id && String(id).trim() !== '') {
       const idStr = String(id).trim();
       existingIds.add(idStr);
@@ -736,7 +733,7 @@ function transferDataToMultipleBaselines() {
     }
   }
 
-  console.log(`Found ${existingIds.size} unique IDs in Audit column H`);
+  console.log(`Found ${existingIds.size} unique IDs in Audit column G`);
 
   const newRows = [];
   const skippedRows = [];
@@ -748,11 +745,11 @@ function transferDataToMultipleBaselines() {
     const row = sourceRows[i];
     const sourceRowNum = i + 1;
 
-    const uniqueId = row[8] ? String(row[8]).trim() : ''; // source column I -> Audit H
+    const uniqueId = row[7] ? String(row[7]).trim() : '';
 
     if (!uniqueId || uniqueId === '') {
-      console.warn(`  ⚠ SKIPPED Row ${sourceRowNum}: Empty ID in column I`);
-      skippedRows.push(`Row ${sourceRowNum}: Empty ID in column I`);
+      console.warn(`  ⚠ SKIPPED Row ${sourceRowNum}: Empty ID in column H`);
+      skippedRows.push(`Row ${sourceRowNum}: Empty ID in column H`);
       continue;
     }
 
@@ -771,22 +768,13 @@ function transferDataToMultipleBaselines() {
         continue;
       }
 
-      const auditRow = auditSheet.getRange(auditRowNum, 1, 1, 14).getValues()[0];
+      const auditRow = auditSheet.getRange(auditRowNum, 1, 1, 12).getValues()[0];
 
-      // Backfill every mapped Audit column except G (no source) and H (the dedup key)
       const backfills = [
-        { auditCol: 1,  value: row[2] },  // C -> Audit A
-        { auditCol: 2,  value: row[3] },  // D -> Audit B
-        { auditCol: 3,  value: row[14] }, // O -> Audit C
-        { auditCol: 4,  value: row[16] }, // Q -> Audit D
-        { auditCol: 5,  value: row[18] }, // S -> Audit E
-        { auditCol: 6,  value: row[5] },  // F -> Audit F
-        { auditCol: 9,  value: row[9] },  // J -> Audit I
-        { auditCol: 10, value: row[15] }, // P -> Audit J
-        { auditCol: 11, value: row[17] }, // R -> Audit K
-        { auditCol: 12, value: row[19] }, // T -> Audit L
-        { auditCol: 13, value: row[11] }, // L -> Audit M
-        { auditCol: 14, value: row[12] }, // M -> Audit N
+        { auditCol: 3,  value: row[13] }, // N -> Audit C
+        { auditCol: 4,  value: row[15] }, // P -> Audit D
+        { auditCol: 9,  value: row[14] }, // O -> Audit I
+        { auditCol: 10, value: row[16] }, // Q -> Audit J
       ];
 
       let rowBackfilled = false;
@@ -807,23 +795,21 @@ function transferDataToMultipleBaselines() {
     }
 
     const newRow = [
-      row[2],   // Column C (index 2)  -> Audit A
-      row[3],   // Column D (index 3)  -> Audit B
-      row[14],  // Column O (index 14) -> Audit C
-      row[16],  // Column Q (index 16) -> Audit D
-      row[18],  // Column S (index 18) -> Audit E
+      row[1],   // Column B (index 1)  -> Audit A
+      row[2],   // Column C (index 2)  -> Audit B
+      row[13],  // Column N (index 13) -> Audit C
+      row[15],  // Column P (index 15) -> Audit D
+      row[4],   // Column E (index 4)  -> Audit E
       row[5],   // Column F (index 5)  -> Audit F
-      '',       // Audit G (no source)
-      row[8],   // Column I (index 8)  -> Audit H (duplicate check)
-      row[9],   // Column J (index 9)  -> Audit I
-      row[15],  // Column P (index 15) -> Audit J
-      row[17],  // Column R (index 17) -> Audit K
-      row[19],  // Column T (index 19) -> Audit L
-      row[11],  // Column L (index 11) -> Audit M (date, used for sorting)
-      row[12],  // Column M (index 12) -> Audit N
+      row[7],   // Column H (index 7)  -> Audit G (duplicate check)
+      row[8],   // Column I (index 8)  -> Audit H
+      row[14],  // Column O (index 14) -> Audit I
+      row[16],  // Column Q (index 16) -> Audit J
+      row[10],  // Column K (index 10) -> Audit K (date, used for sorting)
+      row[11],  // Column L (index 11) -> Audit L
     ];
 
-    console.log(`  ✓ ADDING Row ${sourceRowNum}: ID "${uniqueId}" | Date: ${row[11]}`);
+    console.log(`  ✓ ADDING Row ${sourceRowNum}: ID "${uniqueId}" | Date: ${row[10]}`);
 
     newRows.push(newRow);
     existingIds.add(uniqueId);
@@ -841,8 +827,8 @@ function transferDataToMultipleBaselines() {
     console.log('\n=== WRITING TO AUDIT SHEET ===');
 
     newRows.sort((a, b) => {
-      const dateA = a[12]; // Audit M (date)
-      const dateB = b[12];
+      const dateA = a[10];
+      const dateB = b[10];
       if (!dateA && !dateB) return 0;
       if (!dateA) return 1;
       if (!dateB) return -1;
@@ -862,12 +848,11 @@ function transferDataToMultipleBaselines() {
     console.log(`Last row with data: ${lastRowWithData}`);
     console.log(`Appending ${newRows.length} rows starting at row ${lastRowWithData + 1}`);
 
-    const targetRange = auditSheet.getRange(lastRowWithData + 1, 1, newRows.length, 14);
+    const targetRange = auditSheet.getRange(lastRowWithData + 1, 1, newRows.length, 12);
     targetRange.setValues(newRows);
 
-    // Date: source column L (12) -> Audit column M (13)
-    const sourceFormat = sourceSheet.getRange(1, 12, 1, 1).getNumberFormat();
-    const dateColumn = auditSheet.getRange(lastRowWithData + 1, 13, newRows.length, 1);
+    const sourceFormat = sourceSheet.getRange(1, 11, 1, 1).getNumberFormat();
+    const dateColumn = auditSheet.getRange(lastRowWithData + 1, 11, newRows.length, 1);
     dateColumn.setNumberFormat(sourceFormat);
 
     console.log(`✓ Data written successfully`);
@@ -895,8 +880,6 @@ function transferDataToMultipleBaselines() {
   console.log('\n=== TRANSFER COMPLETE ===');
   SpreadsheetApp.getUi().alert(message);
 }
-
-
 // ============================================================
 // REMOVE DUPLICATES: Clean up duplicate rows in
 // Multiple Baselines Audit based on column G ID
@@ -980,7 +963,7 @@ function initializeManualOhids() {
     if (!ohid) continue;
 
     let changed = false;
-    if (String(data[i][0]).trim() === "") { // Column A only if blank
+    if (String(data[i][0]).trim() === "") { // Column A only if blankco
       data[i][0] = "Active";
       changed = true;
     }
@@ -994,8 +977,6 @@ function initializeManualOhids() {
   sheet.getRange(1, 1, data.length, NUM_COLS).setValues(data);
   SpreadsheetApp.getUi().alert("Initialized " + updated + " row(s) with Active / Automatic.");
 }
-
-
 // ============================================================
 // SETUP: Run this function ONCE to install the onEdit trigger
 // After running, delete or ignore this function
