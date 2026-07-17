@@ -516,6 +516,8 @@ function syncReportsDelivered() {
 // ============================================================
 // TRANSFER FUNCTION: Paste bulk data from xM CRC Paste sheet
 // into xM CRC vs Next Audit
+// Source -> Audit mapping: A->A, B->B, C->C, H->D, I->E, K->F
+// Duplicate detection keys on Audit column A only.
 // ============================================================
 function transferDataToCRC() {
   console.log('=== STARTING DATA TRANSFER ===');
@@ -546,18 +548,12 @@ function transferDataToCRC() {
 
   console.log(`Audit data: ${auditData.length - 1} existing rows (excluding header)`);
 
-  const existingColumnE = new Set();
   const existingColumnA = new Set();
   const idToAuditRow = {};
   const newRowIds = new Set();
 
   for (let i = 1; i < auditData.length; i++) {
-    const colE = auditData[i][4]; // Column E (index 4)
-    const colA = auditData[i][0]; // Column A (index 0)
-
-    if (colE && String(colE).trim() !== '') {
-      existingColumnE.add(String(colE).trim());
-    }
+    const colA = auditData[i][0]; // Column A (index 0) — dedup key
     if (colA && String(colA).trim() !== '') {
       const colAStr = String(colA).trim();
       existingColumnA.add(colAStr);
@@ -565,7 +561,6 @@ function transferDataToCRC() {
     }
   }
 
-  console.log(`Found ${existingColumnE.size} unique values in Audit column E`);
   console.log(`Found ${existingColumnA.size} unique values in Audit column A`);
 
   const newRows = [];
@@ -578,16 +573,14 @@ function transferDataToCRC() {
     const row = sourceRows[i];
     const sourceRowNum = i + 1;
 
-    const colAValue = row[0] ? String(row[0]).trim() : ''; // Column A -> Audit A
-    const colHValue = row[7] ? String(row[7]).trim() : ''; // Column H -> Audit E (duplicate check)
+    const colAValue = row[0] ? String(row[0]).trim() : ''; // Column A -> Audit A (dedup key)
 
     console.log(`\n--- Row ${sourceRowNum} ---`);
-    console.log(`  Column A: "${colAValue}", Column H: "${colHValue}"`);
+    console.log(`  Column A: "${colAValue}"`);
 
-    const colEExists = colHValue && existingColumnE.has(colHValue);
     const colAExists = colAValue && existingColumnA.has(colAValue);
 
-    if (colEExists && colAExists) {
+    if (colAExists) {
       if (newRowIds.has(colAValue)) {
         console.log(`  — SKIPPED Row ${sourceRowNum}: already added this run`);
         skippedRows.push(`Row ${sourceRowNum}: Duplicate — already added this run`);
@@ -615,19 +608,19 @@ function transferDataToCRC() {
         console.log(`  — SKIPPED Row ${sourceRowNum}: Duplicate, nothing to backfill`);
       }
 
-      skippedRows.push(`Row ${sourceRowNum}: Duplicate in both Column A ("${colAValue}") and Column E ("${colHValue}") — ${currentColB === '' || currentColB === null ? 'backfilled B' : 'nothing to backfill'}`);
+      skippedRows.push(`Row ${sourceRowNum}: Duplicate in Column A ("${colAValue}") — ${currentColB === '' || currentColB === null ? 'backfilled B' : 'nothing to backfill'}`);
       continue;
     }
 
     console.log(`  ✓ ADDING row`);
 
     const newRow = [
-      row[0],  // Column A (index 0) -> Audit A
-      row[1],  // Column B (index 1) -> Audit B
-      row[2],  // Column C (index 2) -> Audit C
-      row[6],  // Column G (index 6) -> Audit D
-      row[7],  // Column H (index 7) -> Audit E
-      row[9],  // Column J (index 9) -> Audit F
+      row[0],   // Column A (index 0)  -> Audit A
+      row[1],   // Column B (index 1)  -> Audit B
+      row[2],   // Column C (index 2)  -> Audit C
+      row[7],   // Column H (index 7)  -> Audit D
+      row[8],   // Column I (index 8)  -> Audit E
+      row[10],  // Column K (index 10) -> Audit F
     ];
 
     newRows.push(newRow);
@@ -636,7 +629,6 @@ function transferDataToCRC() {
       existingColumnA.add(colAValue);
       newRowIds.add(colAValue);
     }
-    if (colHValue) existingColumnE.add(colHValue);
   }
 
   console.log(`\n=== PROCESSING COMPLETE ===`);
