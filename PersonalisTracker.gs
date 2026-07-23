@@ -262,8 +262,8 @@ function onEditTrigger(e) {
 // ============================================================
 // BUTTON FUNCTION: Multiple Baselines Audit
 // Feeds into xM NeXT Orders only.
-// OHIDs from col E. Checkbox col H.
-// Check if col K = "resolved" or "valid second baseline" -> uncheck
+// OHIDs from col H. Target checkbox: col G on xM NeXT Orders.
+// Check if col Q = "resolved" or "dupe row" -> uncheck
 // Otherwise -> check
 // All Multiple Baselines = Baseline
 // ============================================================
@@ -281,14 +281,14 @@ function syncMultipleBaselinesAudit() {
   const records = [];
 
   for (let i = 1; i < data.length; i++) {
-    const status = data[i][14]; // Column O dropdown
+    const status = data[i][16]; // Column Q dropdown
     const shouldCheck = !isMultipleBaselinesResolved(status);
 
-    const ohidG = String(data[i][6]).trim(); // Column G
-    if (!ohidG) continue;
+    const ohidH = String(data[i][7]).trim(); // Column H
+    if (!ohidH) continue;
 
     records.push({
-      ohid: ohidG,
+      ohid: ohidH,
       shouldCheck: shouldCheck,
       typeValue: "Baseline"
     });
@@ -889,7 +889,7 @@ function transferDataToMultipleBaselines() {
 }
 // ============================================================
 // REMOVE DUPLICATES: Clean up duplicate rows in
-// Multiple Baselines Audit based on column G ID
+// Multiple Baselines Audit based on column H ID
 // ============================================================
 function removeDuplicatesFromMultipleBaselines() {
   console.log('=== STARTING DUPLICATE REMOVAL ===');
@@ -913,7 +913,7 @@ function removeDuplicatesFromMultipleBaselines() {
 
   for (let i = 0; i < dataRows.length; i++) {
     const row = dataRows[i];
-    const id = row[6] ? String(row[6]).trim() : '';
+    const id = row[7] ? String(row[7]).trim() : '';
 
     if (id === '') {
       uniqueRows.push(row);
